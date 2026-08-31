@@ -1,29 +1,27 @@
-# repo_dashboard
+# repo-dashboard
 
-## Using this template
-
-Rename the app and repo references (replace `your_app` and `youruser/your-repo`):
-
-```bash
-NEW_MODULE=your_app                 # python module name, snake_case
-NEW_DIST=your-app                   # package/dist name, kebab-case
-NEW_REPO=youruser/your-repo         # github <user>/<repo>
-
-git grep -lz -e repo_dashboard -e repo-dashboard -e kism/repo-dashboard | \
-  xargs -0 sed -i "s|repo_dashboard|$NEW_MODULE|g; s|repo-dashboard|$NEW_DIST|g; s|kism/repo-dashboard|$NEW_REPO|g"
-git mv src/repo_dashboard "src/$NEW_MODULE"
-rm -f .github/workflows/dependabot_automerge.yml
-rm -rf .venv *.egg-info && uv sync --all-extras
-
-rm -rf .git && git init -q && git add -A && git commit -qm "Initial commit"
-```
-
-Then delete this section.
+Builds a static landing page listing every one of your public GitHub repos that has CI, with its description
+and its CI badges. Badges and descriptions come from each repo's README.md where it has them, otherwise they
+are generated from the repo's workflows and its GitHub description.
 
 [![Check](https://github.com/kism/repo-dashboard/actions/workflows/check.yml/badge.svg)](https://github.com/kism/repo-dashboard/actions/workflows/check.yml)
 [![CheckType](https://github.com/kism/repo-dashboard/actions/workflows/check_types.yml/badge.svg)](https://github.com/kism/repo-dashboard/actions/workflows/check_types.yml)
 [![Test](https://github.com/kism/repo-dashboard/actions/workflows/test.yml/badge.svg)](https://github.com/kism/repo-dashboard/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/kism/repo-dashboard/graph/badge.svg?token=FPGDA0ODT7)](https://codecov.io/gh/kism/repo-dashboard)
+
+Repo data comes from the [`gh` cli](https://cli.github.com), so it uses whatever you are already logged in as,
+there is no token to configure. Forks and archived repos are left off the page.
+
+```bash
+repo-dashboard                          # writes site/index.html for the logged in user
+repo-dashboard --user someone --output out/index.html
+```
+
+## Publishing to GitHub Pages
+
+'.github/workflows/pages.yml' builds the page and deploys it on push to main, daily, and on demand. Enable it
+with Settings -> Pages -> Source -> GitHub Actions. The badges are live images, so the page only needs
+rebuilding when you add or rename a repo, not when CI runs.
 
 ## Prerequisites
 

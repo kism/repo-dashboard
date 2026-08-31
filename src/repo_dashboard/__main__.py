@@ -1,25 +1,35 @@
 """Main Entrypoint."""
 
 import argparse
+from pathlib import Path
 
 from rich import traceback
 
+from . import dashboard
 from .constants import PROGRAM_NAME, PROGRAM_NAME_WITH_VERSION
-from .my_cool_object import MyCoolObject
 from .utils.logger import get_logger, setup_logger_cli
 
 traceback.install(extra_lines=2)
 logger = get_logger(__name__)
 
+DEFAULT_OUTPUT = Path("site/index.html")
+
 
 def _get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME, description=PROGRAM_NAME_WITH_VERSION)
     parser.add_argument(
-        "--message",
+        "--user",
         action="store",
         type=str,
-        default="Hello, World!",
-        help="The message to display.",
+        default="",
+        help="The GitHub user to list repos for, defaults to the authenticated `gh` user.",
+    )
+    parser.add_argument(
+        "--output",
+        action="store",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help=f"Where to write the page, defaults to '{DEFAULT_OUTPUT}'.",
     )
     parser.add_argument(
         "-v",
@@ -35,10 +45,14 @@ def main() -> None:
     args = _get_args()
     setup_logger_cli(args.v)
     logger.info("%s", PROGRAM_NAME_WITH_VERSION)
-    my_obj = MyCoolObject(args.message)
-    logger.trace("About to print message")
-    logger.info("Message: %s", my_obj.get_message())
-    logger.trace("Exiting")
+
+    user = args.user or dashboard.current_user()
+    if not user:
+        logger.error("Could not work out the GitHub user, run `gh auth login` or pass --user")
+        raise SystemExit(1)
+
+    count = dashboard.build(user, args.output)
+    logger.info("Wrote %d repos to %s", count, args.output)
 
 
 if __name__ == "__main__":
