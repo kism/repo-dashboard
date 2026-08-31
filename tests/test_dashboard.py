@@ -1,4 +1,8 @@
-"""Tests for the page builder, all against the pure functions so nothing hits the network."""
+"""Tests for the page builder, the `gh` cli is faked so nothing hits the network."""
+
+import subprocess  # ruff: ignore[suspicious-subprocess-import] we fake the `gh` cli calls
+
+import pytest
 
 from repo_dashboard import dashboard
 
@@ -15,7 +19,56 @@ A cool thing that does cool stuff.
 WORKFLOWS = [
     {"name": "Test", "path": ".github/workflows/test.yml", "state": "active"},
     {"name": "Dependabot Updates", "path": "dynamic/dependabot/dependabot-updates", "state": "active"},
+    {"name": "Old", "path": ".github/workflows/old.yml", "state": "disabled_manually"},
 ]
+
+
+def fake_run(stdout: str = "", returncode: int = 0):
+    """Stand in for subprocess.run, CompletedProcess is the stdlib's own result object."""
+    return lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, returncode, stdout, "it broke")
+
+
+def test_gh_returns_stdout(monkeypatch) -> None:
+    monkeypatch.setattr(subprocess, "run", fake_run("kism\n"))
+    assert dashboard._gh("api", "/user") == "kism\n"
+
+    monkeypatch.setattr(subprocess, "run", fake_run("kism\n", returncode=1))
+    assert not dashboard._gh("api", "/user"), "A failed call just means the repo gets skipped"
+
+
+def test_gh_without_the_cli_installed(monkeypatch) -> None:
+    def no_gh(*args, **kwargs):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(subprocess, "run", no_gh)
+
+    with pytest.raises(SystemExit):
+        dashboard._gh("api", "/user")
+
+
+def test_gh_json_parses_a_line_per_object(monkeypatch) -> None:
+    monkeypatch.setattr(subprocess, "run", fake_run('{"a": 1}\n\n{"a": 2}\n'))
+
+    assert dashboard._gh_json("api", "/x") == [{"a": 1}, {"a": 2}], "Blank lines are skipped"
+
+
+def test_the_api_endpoints(monkeypatch) -> None:
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(dashboard, "_gh", lambda *args: (calls.append(args), "{}")[1])
+
+    dashboard.current_user()
+    dashboard.list_repos("a user")
+    dashboard.fetch_readme("kism/my-repo")
+
+    assert "/user" in calls[0]
+    assert "/users/a%20user/repos?per_page=100&type=owner&sort=pushed" in calls[1], "The user is url quoted"
+    assert "/repos/kism/my-repo/readme" in calls[2]
+
+
+def test_ci_workflows_only_keeps_real_active_ones(monkeypatch) -> None:
+    monkeypatch.setattr(dashboard, "_gh_json", lambda *args: WORKFLOWS)
+
+    assert [w["name"] for w in dashboard.ci_workflows("kism/my-repo")] == ["Test"]
 
 
 def test_extract_badges_keeps_only_badges() -> None:
@@ -89,3 +142,10 @@ def test_render_escapes_html() -> None:
 
     assert "<script>" not in page
     assert "a &amp; b" in page
+
+
+def test_render_badge_only_links_when_there_is_a_link() -> None:
+    badge = dashboard.Badge("Test", "https://example.com/b.svg", "https://example.com")
+
+    assert dashboard._render_badge(badge).startswith('<a href="https://example.com">')
+    assert dashboard._render_badge(dashboard.Badge("Test", "https://example.com/b.svg")).startswith("<img")
