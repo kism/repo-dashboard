@@ -1,0 +1,106 @@
+[project]
+name = "repo-dashboard"
+version = "0.0.1"
+description = ""
+authors = []
+readme = "README.md"
+requires-python = ">=3.14.0,<4"
+dependencies = ["rich>=15.0.0"]
+
+[project.optional-dependencies]
+type = ["ty>=0.0.69"]
+
+lint = ["ruff>=0.16.2"]
+
+test = [
+    "pytest>=9.1.1",
+    "coverage>=7.15.4",
+    "pytest-mock",
+    "pytest-random-order",
+    "detect-test-pollution",
+]
+
+[project.urls]
+Repository = "https://github.com/kism/repo-dashboard"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
+[project.scripts]
+repo-dashboard = "repo_dashboard:__main__.main"
+
+[tool.ruff]
+cache-dir = "~/.cache/ruff"
+line-length = 120
+
+[tool.ruff.lint]
+preview = true # Optional, these can be unstable, many of these rules exist.
+select = ["ALL"] # Include absolutely all of Ruff's rules.
+ignore = [
+    # Modules
+    "DJ",   # Django not required
+    "AIR",  # Airflow not required
+    "FAST", # FastAPI not required
+    "DTZ",  # no need to specify timezone for time objects
+
+    # Specific rules
+    "missing-todo-author",  # Verbose TODO, only I work on this project
+    "missing-todo-link",  # Verbose TODO, only I work on this project
+    "single-line-implicit-string-concatenation", # conflict in the formatter
+    "missing-trailing-comma", # conflict in the formatter
+    "D",      # Don't care about docstrings
+    "DOC",    # Don't care about docstrings
+    "missing-copyright-notice", # Copyright lives in pyproject.toml
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+    # Modules
+    "ARG", # Unused function args -> fixtures nevertheless are functionally relevant
+    "FBT", # Don't care about booleans as positional arguments in tests, e.g. via @pytest.mark.parametrize()
+    "ANN", # Don't care about annotations in tests
+    "D",   # Don't care about docstrings in tests
+    "DOC", # Don't care about docstrings in tests
+
+    # Specific rules
+    "assert",    # asserts allowed in tests.
+    "private-member-access",  # Accessing private members is needed for testing.
+    "implicit-namespace-package",  # __init__.py not needed for PyTest.
+    "pytest-missing-fixture-name-underscore",   # monkeypatch doesn't return.
+    "suspicious-non-cryptographic-random-usage",    # I'll assume no real crypto will be done in PyTest.
+    "hardcoded-password-string",    # Hardcoded fake passwords are fine in tests.
+    "too-many-arguments", # Tests can have as many arguments as they want.
+    "blind-except",  # Tests can use BaseException.
+    "suspicious-non-cryptographic-random-usage",    # Regular RNG is fine in tests.
+    "import-private-name", # Tests can import private members.
+]
+
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+docstring-code-line-length = 40
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+command_line = ".venv/bin/pytest -q"
+source = ["repo_dashboard"]
+context = "test"
+
+[tool.coverage.report]
+show_missing = false
+format = "text"
+sort = "-Miss"
+
+[tool.coverage.html]
+show_contexts = true
