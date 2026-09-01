@@ -1,7 +1,8 @@
 # repo-dashboard
 
 Builds a static landing page listing every one of your public GitHub repos that has CI, with its description and
-its CI badges. Badges and descriptions come from each repo's README.md where it has them, otherwise they are
+its CI badges, led by a badge showing the last push to its default branch (orange over six months old, red over
+two years). Other badges and descriptions come from each repo's README.md where it has them, otherwise they are
 generated from the repo's workflows and its GitHub description. Forks and archived repos are left off.
 
 [![Check](https://github.com/kism/repo-dashboard/actions/workflows/check.yml/badge.svg)](https://github.com/kism/repo-dashboard/actions/workflows/check.yml)
@@ -22,8 +23,8 @@ repo-dashboard -vv                      # -v per level of verbosity
 ## Publishing to GitHub Pages
 
 '.github/workflows/pages.yml' builds the page and deploys it on push to main, daily, and on demand. Enable it
-with Settings -> Pages -> Source -> GitHub Actions. The badges are live images, so the page only needs
-rebuilding when you add or rename a repo, not when CI runs.
+with Settings -> Pages -> Source -> GitHub Actions. The CI badges are live images, so the page only needs
+rebuilding when you add or rename a repo, not when CI runs; the daily run keeps the last-push badges current.
 
 ## Development
 

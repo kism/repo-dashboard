@@ -2,6 +2,7 @@
 
 import re
 import subprocess  # ruff: ignore[suspicious-subprocess-import] we fake the `gh` cli calls
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -99,9 +100,28 @@ def test_workflow_badges_point_at_the_default_branch() -> None:
     assert "branch%3Atrunk" in badges[0].link
 
 
+def test_last_push_badge_colour(monkeypatch) -> None:
+    def at(days_ago: int) -> dashboard.Badge:
+        pushed = datetime.now(tz=UTC) - timedelta(days=days_ago)
+        monkeypatch.setattr(dashboard, "_gh", lambda *args: pushed.isoformat())
+        badge = dashboard.last_push_badge("kism/my-repo", "main")
+        assert badge is not None
+        return badge
+
+    assert at(1).image.endswith("brightgreen")
+    assert at(200).image.endswith("orange")
+    assert at(365 * 3).image.endswith("red")
+    assert "last%20push-" in at(1).image
+    assert at(1).link == "https://github.com/kism/my-repo/commits/main"
+
+    monkeypatch.setattr(dashboard, "_gh", lambda *args: "")
+    assert dashboard.last_push_badge("kism/my-repo", "main") is None, "A failed call just drops the badge"
+
+
 def test_build_repo_uses_readme_badges(monkeypatch) -> None:
     monkeypatch.setattr(dashboard, "ci_workflows", lambda _: WORKFLOWS[:1])
     monkeypatch.setattr(dashboard, "fetch_readme", lambda _: README)
+    monkeypatch.setattr(dashboard, "last_push_badge", lambda *args: dashboard.Badge("last push 2026-01-01", "i", "l"))
 
     repo = dashboard.build_repo(
         {"name": "my-repo", "full_name": "kism/my-repo", "html_url": "u", "description": None, "default_branch": "main"}
@@ -109,7 +129,7 @@ def test_build_repo_uses_readme_badges(monkeypatch) -> None:
 
     assert repo is not None
     assert repo.description == "A cool thing that does cool stuff.", "Falls back to the README"
-    assert [badge.alt for badge in repo.badges] == ["Test", "codecov"]
+    assert [badge.alt for badge in repo.badges] == ["last push 2026-01-01", "Test", "codecov"], "Push badge first"
 
 
 def test_build_repo_without_ci_is_skipped(monkeypatch) -> None:

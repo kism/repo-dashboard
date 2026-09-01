@@ -7,7 +7,7 @@ import subprocess  # ruff: ignore[suspicious-subprocess-import] we shell out to 
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -21,6 +21,8 @@ logger = get_logger(__name__)
 
 WORKFLOW_DIR = ".github/workflows/"
 MAX_BADGES = 8
+STALE = timedelta(days=365 * 2)
+GETTING_STALE = timedelta(days=182)
 MAX_DESCRIPTION_LEN = 200
 API_WORKERS = 8
 
@@ -131,6 +133,26 @@ def workflow_badges(full_name: str, default_branch: str, workflows: list[dict]) 
     return badges[:MAX_BADGES]
 
 
+def last_push_badge(full_name: str, default_branch: str) -> Badge | None:
+    """A shields.io badge with the date of the last push to the default branch, coloured by how stale it is."""
+    branch = quote(default_branch)
+    date = _gh("api", f"/repos/{full_name}/branches/{branch}", "--jq", ".commit.commit.committer.date").strip()
+    if not date:
+        return None
+
+    pushed = datetime.fromisoformat(date)
+    age = datetime.now(tz=UTC) - pushed
+    colour = "red" if age > STALE else "orange" if age > GETTING_STALE else "brightgreen"
+    label = pushed.date().isoformat()
+
+    # shields.io takes `-` in a badge field as `--`.
+    return Badge(
+        f"last push {label}",
+        f"https://img.shields.io/badge/last%20push-{label.replace('-', '--')}-{colour}",
+        f"https://github.com/{full_name}/commits/{branch}",
+    )
+
+
 def first_paragraph(markdown: str) -> str:
     """The README's intro line, as a fallback for a repo with no description.
 
@@ -157,11 +179,14 @@ def build_repo(repo: dict) -> Repo | None:
     readme = fetch_readme(full_name)
     logger.info("Including %s", full_name)
 
+    badges = extract_badges(readme) or workflow_badges(full_name, repo["default_branch"], workflows)
+    pushed = last_push_badge(full_name, repo["default_branch"])
+
     return Repo(
         name=repo["name"],
         url=repo["html_url"],
         description=repo["description"] or first_paragraph(readme),
-        badges=extract_badges(readme) or workflow_badges(full_name, repo["default_branch"], workflows),
+        badges=([pushed] if pushed else []) + badges,
     )
 
 
