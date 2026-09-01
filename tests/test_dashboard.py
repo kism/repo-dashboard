@@ -1,5 +1,6 @@
 """Tests for the page builder, the `gh` cli is faked so nothing hits the network."""
 
+import re
 import subprocess  # ruff: ignore[suspicious-subprocess-import] we fake the `gh` cli calls
 
 import pytest
@@ -145,7 +146,22 @@ def test_render_escapes_html() -> None:
 
 
 def test_render_badge_only_links_when_there_is_a_link() -> None:
-    badge = dashboard.Badge("Test", "https://example.com/b.svg", "https://example.com")
+    badges = [
+        dashboard.Badge("Linked", "https://example.com/a.svg", "https://example.com"),
+        dashboard.Badge("Bare", "https://example.com/b.svg"),
+    ]
+    page = dashboard.render([dashboard.Repo("my-repo", "https://example.com", badges=badges)], "kism")
 
-    assert dashboard._render_badge(badge).startswith('<a href="https://example.com">')
-    assert dashboard._render_badge(dashboard.Badge("Test", "https://example.com/b.svg")).startswith("<img")
+    assert re.search(r'<a href="https://example.com">\s*<img src="https://example.com/a.svg"[^>]*>\s*</a>', page)
+    assert re.search(r'</a>\s*<img src="https://example.com/b.svg"[^>]*>\s*</div>', page), "Bare badge isn't wrapped"
+
+
+def test_render_description_handles_inline_markdown() -> None:
+    rendered = dashboard._render_description("Run `uv sync`, see the [docs](https://example.com/d) & go")
+
+    assert rendered == 'Run <code>uv sync</code>, see the <a href="https://example.com/d">docs</a> &amp; go'
+
+
+def test_render_description_ignores_dodgy_markdown() -> None:
+    assert dashboard._render_description("![badge](https://img.example/b.svg) A thing") == "A thing"
+    assert dashboard._render_description("[click](javascript:alert(1))") == "[click](javascript:alert(1))"
