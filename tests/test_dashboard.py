@@ -61,10 +61,12 @@ def test_the_api_endpoints(monkeypatch) -> None:
     dashboard.current_user()
     dashboard.list_repos("a user")
     dashboard.fetch_readme("kism/my-repo")
+    dashboard.pronouns("a user")
 
     assert "/user" in calls[0]
     assert "/users/a%20user/repos?per_page=100&type=owner&sort=pushed" in calls[1], "The user is url quoted"
     assert "/repos/kism/my-repo/readme" in calls[2]
+    assert "login=a user" in calls[3], "The login is a GraphQL variable, not pasted into the query"
 
 
 def test_ci_workflows_only_keeps_real_active_ones(monkeypatch) -> None:
@@ -149,6 +151,7 @@ def test_build_writes_the_page(monkeypatch, tmp_path) -> None:
         ],
     )
     monkeypatch.setattr(dashboard, "build_repo", lambda repo: dashboard.Repo(repo["full_name"], "https://example.com"))
+    monkeypatch.setattr(dashboard, "pronouns", lambda _: "she/her")
 
     output = tmp_path / "site" / "index.html"
     assert dashboard.build("kism", output) == 1, "Forks and archived repos don't make the page"
@@ -156,6 +159,20 @@ def test_build_writes_the_page(monkeypatch, tmp_path) -> None:
     page = output.read_text()
     assert "kism/my-repo" in page
     assert "a-fork" not in page
+    assert "👩‍💻" in page, "The favicon follows the user's pronouns"
+
+
+def test_render_favicon_follows_pronouns() -> None:
+    def favicon(user_pronouns: str) -> str:
+        match = re.search(r"font-size='90'>(.+?)</text>", dashboard.render([], "kism", user_pronouns))
+        assert match
+        return match[1]
+
+    assert favicon("he/him") == "👨‍💻"
+    assert favicon("She/Her") == "👩‍💻"
+    assert favicon("they/them") == "🧑‍💻"
+    assert favicon("") == "🧑‍💻", "Unset pronouns get the neutral emoji"
+    assert favicon("he/they") == "🧑‍💻", "Custom pronouns aren't guessed at"
 
 
 def test_render_escapes_html() -> None:

@@ -40,6 +40,10 @@ CODE_RE = re.compile(r"`([^`]+)`")
 # Lines that start with these are markup, not prose, so they can't be a fallback description.
 MARKUP_PREFIXES = ("#", "!", "[", "<", ">", "|", "-", "*", "`", "=", "_", "+")
 
+# ponytail: only GitHub's own pronoun presets get a gendered favicon, custom pronouns get the neutral one.
+FAVICONS = {"he/him": "👨‍💻", "she/her": "👩‍💻"}
+NEUTRAL_FAVICON = "🧑‍💻"
+
 
 @dataclass
 class Badge:
@@ -83,6 +87,14 @@ def _gh_json(*args: str) -> list[dict]:
 def current_user() -> str:
     """The login of the authenticated `gh` user."""
     return _gh("api", "/user", "--jq", ".login").strip()
+
+
+def pronouns(user: str) -> str:
+    """The pronouns on a user's profile, or an empty string if unset. Only the GraphQL api has them."""
+    query = "query($login: String!) { user(login: $login) { pronouns } }"
+    return _gh(
+        "api", "graphql", "-f", f"query={query}", "-f", f"login={user}", "--jq", '.data.user.pronouns // ""'
+    ).strip()
 
 
 def list_repos(user: str) -> list[dict]:
@@ -216,10 +228,11 @@ _env.filters["markdown"] = lambda text: Markup(_render_description(text))  # ruf
 TEMPLATE = _env.get_template("page.html.j2")
 
 
-def render(repos: list[Repo], user: str) -> str:
+def render(repos: list[Repo], user: str, user_pronouns: str = "") -> str:
     """Render the whole page."""
     return TEMPLATE.render(
         title=f"{user}'s repos",
+        favicon=FAVICONS.get(user_pronouns.lower(), NEUTRAL_FAVICON),
         repos=repos,
         css=CSS,
         generated=datetime.now(tz=OUR_TIMEZONE).strftime("%Y-%m-%d %H:%M %Z"),
@@ -237,6 +250,6 @@ def build(user: str, output: Path) -> int:
         repos = [repo for repo in pool.map(build_repo, candidates) if repo]
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render(repos, user), encoding="utf-8")
+    output.write_text(render(repos, user, pronouns(user)), encoding="utf-8")
 
     return len(repos)
