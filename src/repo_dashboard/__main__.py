@@ -3,13 +3,10 @@
 import argparse
 from pathlib import Path
 
-from rich import traceback
-
 from . import dashboard
 from .constants import PROGRAM_NAME, PROGRAM_NAME_WITH_VERSION
 from .utils.logger import get_logger, setup_logger_cli
 
-traceback.install(extra_lines=2)
 logger = get_logger(__name__)
 
 DEFAULT_OUTPUT = Path("site/index.html")

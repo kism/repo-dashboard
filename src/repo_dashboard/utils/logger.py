@@ -1,15 +1,9 @@
 """Setup the logger functionality."""
 
 import logging
-import os
 import typing
 from logging.handlers import RotatingFileHandler
 from typing import TYPE_CHECKING, cast
-
-from rich.console import Console
-from rich.highlighter import NullHighlighter
-from rich.logging import RichHandler
-from rich.theme import Theme
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,8 +24,6 @@ SIMPLE_LOG_FORMAT = "%(levelname)s:%(message)s"
 SIMPLE_LOG_FORMAT_DEBUG = "%(levelname)s:%(name)s:%(message)s"
 FILE_LOG_FORMAT = "%(levelname)s:%(name)s:%(message)s"
 TRACE_LEVEL_NUM = 5
-
-USE_SIMPLE_LOGGING: bool = os.getenv("SIMPLE_LOGGING", "0").lower() in {"1", "true", "yes"}
 
 
 class CustomLogger(logging.Logger):
@@ -97,7 +89,7 @@ def setup_logger(
         in_logger = logging.getLogger()  # Get the root logger
 
     # If the logger doesn't have a console handler (root logger doesn't by default)
-    if not any(isinstance(handler, (RichHandler, logging.StreamHandler)) for handler in in_logger.handlers):
+    if not any(isinstance(handler, logging.StreamHandler) for handler in in_logger.handlers):
         _add_console_handler(in_logger=in_logger, log_level_int=log_level_int)
 
     in_logger.setLevel(log_level_int)
@@ -116,25 +108,14 @@ def get_logger(name: str) -> CustomLogger:
 
 def _add_console_handler(in_logger: logging.Logger, log_level_int: int) -> None:
     """Add a console handler to the logger."""
-    if not USE_SIMPLE_LOGGING:
-        console = Console(theme=Theme({"logging.level.trace": "dim"}))
-
-        console_handler_rich = RichHandler(
-            console=console,
-            show_time=False,
-            rich_tracebacks=True,
-            highlighter=NullHighlighter(),
-        )
-        in_logger.addHandler(console_handler_rich)
+    console_handler = logging.StreamHandler()
+    if log_level_int <= TRACE_LEVEL_NUM:
+        formatter = logging.Formatter(SIMPLE_LOG_FORMAT_DEBUG)
     else:
-        console_handler = logging.StreamHandler()
-        if log_level_int <= TRACE_LEVEL_NUM:
-            formatter = logging.Formatter(SIMPLE_LOG_FORMAT_DEBUG)
-        else:
-            formatter = logging.Formatter(SIMPLE_LOG_FORMAT)
+        formatter = logging.Formatter(SIMPLE_LOG_FORMAT)
 
-        console_handler.setFormatter(formatter)
-        in_logger.addHandler(console_handler)
+    console_handler.setFormatter(formatter)
+    in_logger.addHandler(console_handler)
 
 
 def _add_file_handler(in_logger: logging.Logger, log_path: Path) -> None:

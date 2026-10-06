@@ -94,9 +94,8 @@ def test_trace_log_message(logger: CustomLogger) -> None:
     "log_level",
     [logging.INFO, TRACE_LEVEL_NUM],
 )
-def test_simple_logging_console_handler(logger: CustomLogger, monkeypatch: pytest.MonkeyPatch, log_level: int) -> None:
-    """Test the USE_SIMPLE_LOGGING path uses a plain StreamHandler."""
-    monkeypatch.setattr("repo_dashboard.utils.logger.USE_SIMPLE_LOGGING", True)
+def test_console_handler(logger: CustomLogger, log_level: int) -> None:
+    """Test the console handler is a plain StreamHandler."""
     setup_logger(log_level=log_level, in_logger=logger)
     assert len(logger.handlers) == 1
     assert isinstance(logger.handlers[0], logging.StreamHandler)

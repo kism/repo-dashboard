@@ -14,7 +14,7 @@ from urllib.parse import quote
 from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
 
-from .constants import OUR_TIMEZONE, PROGRAM_REPO_URL
+from .constants import PROGRAM_REPO_URL
 from .utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -235,7 +235,7 @@ def render(repos: list[Repo], user: str, user_pronouns: str = "") -> str:
         favicon=FAVICONS.get(user_pronouns.lower(), NEUTRAL_FAVICON),
         repos=repos,
         css=CSS,
-        generated=datetime.now(tz=OUR_TIMEZONE).strftime("%Y-%m-%d %H:%M %Z"),
+        generated=datetime.now(tz=UTC).isoformat(timespec="seconds"),
         program_repo_url=PROGRAM_REPO_URL,
     )
 

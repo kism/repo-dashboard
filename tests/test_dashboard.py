@@ -178,7 +178,7 @@ def test_render_favicon_follows_pronouns() -> None:
 def test_render_escapes_html() -> None:
     page = dashboard.render([dashboard.Repo("<script>", "https://example.com", "a & b")], "kism")
 
-    assert "<script>" not in page
+    assert '<h2><a href="https://example.com">&lt;script&gt;</a></h2>' in page
     assert "a &amp; b" in page
 
 
