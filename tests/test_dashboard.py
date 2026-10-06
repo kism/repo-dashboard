@@ -124,6 +124,7 @@ def test_build_repo_uses_readme_badges(monkeypatch) -> None:
     monkeypatch.setattr(dashboard, "ci_workflows", lambda _: WORKFLOWS[:1])
     monkeypatch.setattr(dashboard, "fetch_readme", lambda _: README)
     monkeypatch.setattr(dashboard, "last_push_badge", lambda *args: dashboard.Badge("last push 2026-01-01", "i", "l"))
+    monkeypatch.setattr(dashboard, "languages", lambda _: [dashboard.Language("Python", "#3572A5", 100.0)])
 
     repo = dashboard.build_repo(
         {"name": "my-repo", "full_name": "kism/my-repo", "html_url": "u", "description": None, "default_branch": "main"}
@@ -132,6 +133,30 @@ def test_build_repo_uses_readme_badges(monkeypatch) -> None:
     assert repo is not None
     assert repo.description == "A cool thing that does cool stuff.", "Falls back to the README"
     assert [badge.alt for badge in repo.badges] == ["last push 2026-01-01", "Test", "codecov"], "Push badge first"
+
+
+def test_languages(monkeypatch) -> None:
+    calls: list[tuple[str, ...]] = []
+    rows = (
+        '{"name": "Python", "color": "#3572A5", "percent": 90.5}\n'
+        '{"name": "Mystery", "color": "#8b949e", "percent": 9.5}\n'
+    )
+    monkeypatch.setattr(dashboard, "_gh", lambda *args: (calls.append(args), rows)[1])
+
+    assert dashboard.languages("kism/my-repo") == [
+        dashboard.Language("Python", "#3572A5", 90.5),
+        dashboard.Language("Mystery", "#8b949e", 9.5),
+    ]
+    assert "owner=kism" in calls[0]
+    assert "name=my-repo" in calls[0]
+
+
+def test_render_language_breakdown() -> None:
+    repo = dashboard.Repo("r", "u", languages=[dashboard.Language("Python", "#3572A5", 90.54)])
+    page = dashboard.render([repo], "kism")
+
+    assert "Python 90.5%" in page
+    assert "flex: 90.54; background: #3572A5" in page
 
 
 def test_build_repo_without_ci_is_skipped(monkeypatch) -> None:

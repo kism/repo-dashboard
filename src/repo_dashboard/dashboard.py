@@ -25,6 +25,7 @@ STALE = timedelta(days=365 * 2)
 GETTING_STALE = timedelta(days=182)
 MAX_DESCRIPTION_LEN = 200
 API_WORKERS = 8
+MAX_LANGUAGES = 6
 
 # ponytail: a badge is an image from a known badge host, everything else in a README is a screenshot or a logo.
 BADGE_URL_HINTS = ("badge", "shields.io", "codecov")
@@ -55,6 +56,15 @@ class Badge:
 
 
 @dataclass
+class Language:
+    """A slice of a repo's language breakdown, `percent` is of the whole repo's code."""
+
+    name: str
+    color: str
+    percent: float
+
+
+@dataclass
 class Repo:
     """A repo with CI, as rendered onto the page."""
 
@@ -62,6 +72,7 @@ class Repo:
     url: str
     description: str = ""
     badges: list[Badge] = field(default_factory=list)
+    languages: list[Language] = field(default_factory=list)
 
 
 def _gh(*args: str) -> str:
@@ -108,6 +119,22 @@ def ci_workflows(full_name: str) -> list[dict]:
     """Active workflows defined in the repo, minus GitHub's own dynamic pseudo-workflows."""
     workflows = _gh_json("api", f"/repos/{full_name}/actions/workflows", "--jq", ".workflows[]")
     return [w for w in workflows if w["state"] == "active" and w["path"].startswith(WORKFLOW_DIR)]
+
+
+def languages(full_name: str) -> list[Language]:
+    """The biggest languages in a repo, with GitHub's colours for them. Only the GraphQL api has the colours."""
+    owner, name = full_name.split("/")
+    query = (
+        "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {"
+        f" languages(first: {MAX_LANGUAGES}, orderBy: {{field: SIZE, direction: DESC}})"
+        " { totalSize edges { size node { name color } } } } }"
+    )
+    jq = (
+        ".data.repository.languages as $l | $l.edges[]"
+        ' | {name: .node.name, color: (.node.color // "#8b949e"), percent: (.size * 100 / $l.totalSize)}'
+    )
+    rows = _gh_json("api", "graphql", "-f", f"query={query}", "-f", f"owner={owner}", "-f", f"name={name}", "--jq", jq)
+    return [Language(**row) for row in rows]
 
 
 def fetch_readme(full_name: str) -> str:
@@ -199,6 +226,7 @@ def build_repo(repo: dict) -> Repo | None:
         url=repo["html_url"],
         description=repo["description"] or first_paragraph(readme),
         badges=([pushed] if pushed else []) + badges,
+        languages=languages(full_name),
     )
 
 

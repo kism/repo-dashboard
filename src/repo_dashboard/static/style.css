@@ -27,3 +27,6 @@ article p code {
 }
 .badges { margin-top: .75rem; display: flex; flex-wrap: wrap; gap: .3rem; }
 .badges img { height: 20px; display: block; }
+.lang-bar { margin-top: .75rem; display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; }
+.langs { margin: .4rem 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .1rem .8rem; color: var(--muted); font-size: .75rem; }
+.langs span { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .3rem; }

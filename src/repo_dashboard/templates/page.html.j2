@@ -19,6 +19,18 @@
     {% if repo.description %}
     <p>{{ repo.description | markdown }}</p>
     {% endif %}
+    {% if repo.languages %}
+    <div class="lang-bar">
+    {% for lang in repo.languages %}
+      <span style="flex: {{ lang.percent }}; background: {{ lang.color }}" title="{{ lang.name }} {{ '%.1f' | format(lang.percent) }}%"></span>
+    {% endfor %}
+    </div>
+    <ul class="langs">
+    {% for lang in repo.languages %}
+      <li><span style="background: {{ lang.color }}"></span>{{ lang.name }} {{ '%.1f' | format(lang.percent) }}%</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
     <div class="badges">
     {% for badge in repo.badges %}
       {%+ if badge.link %}<a href="{{ badge.link }}">{% endif -%}
